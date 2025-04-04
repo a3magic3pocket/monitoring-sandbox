@@ -1,0 +1,103 @@
+groups:
+  - name: CPU
+    rules:
+      - alert: HighCPUUsage
+        expr: (sum(rate(node_cpu_seconds_total{mode!="idle"}[5m])) by (instance)) > 0.7
+        for: 30s
+#        expr: (sum(rate(node_cpu_seconds_total{mode!="idle"}[5m])) by (instance)) > 0.00001
+#        for: 1s
+        labels:
+          severity: critical
+        annotations:
+          summary: "CPU 사용량 70% 초과 지속"
+          description: "Instance {{ $labels.instance }} has high CPU usage."
+  - name: Disk
+    rules:
+      - alert: LowDiskSpace
+        expr: (node_filesystem_size_bytes - node_filesystem_avail_bytes) / node_filesystem_size_bytes > 0.7
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "디스크 사용량 70% 초과 지속"
+          description: "Instance {{ $labels.instance }} has low disk space."
+  - name: Network
+    rules:
+      - alert: HighDataReception
+        expr: (rate(node_network_receive_bytes_total[5m]) > avg_over_time(rate(node_network_receive_bytes_total[5m])[1h:5m]) * 1.5)
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "현재 데이터 수신량이 1 시간 평균 데이터 수신량을 초과"
+          description: "Instance {{ $labels.instance }} has experienced a sharp increase in network data reception."
+  - name: Memory
+    rules:
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) < 0.3
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "사용 가능한 메모리 비율이 30% 미만"
+          description: "Instance {{ $labels.instance }} has a low available memory rate."
+  - name: Spring
+    rules:
+      - alert: LateHTTPRequest
+        expr: (sum(http_server_requests_seconds_sum) by (instance) / sum(http_server_requests_seconds_count) by (instance)) > 3
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "HTTP 요청 처리 시간이 3초 초과"
+          description: "Instance {{ $labels.instance }} has a long HTTP request processing time."
+      - alert: TooManyHTTPRequest
+        expr: (rate(http_server_requests_seconds_count[5m]) > 30000)
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "초 당 HTTP 요청이 30000 초과"
+          description: "Instance {{ $labels.instance }} has too many HTTP requests."
+      - alert: TooManyHttpError
+        expr: (sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) by (instance) / sum(rate(http_server_requests_seconds_count[5m])) by (instance)) > 0.03
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "5분 간 HTTP 요청 중 500 에러 비율이 5% 초과"
+          description: "Instance {{ $labels.instance }} has too many HTTP error responses."
+      - alert: HighJVMMemoryHeapUsage
+        expr: sum(jvm_memory_used_bytes{area="heap"}) by (instance) / sum(jvm_memory_max_bytes{area="heap"}) by (instance) > 0.7
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "JVM 힙 메모리 사용률이 70% 초과"
+          description: "Instance {{ $labels.instance }} is using too much JVM."
+      - alert: TooManyThreads
+        expr: (avg_over_time(jvm_threads_live[5m]) - avg_over_time(jvm_threads_live[1h])) > 3
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "최근 5분 간 활성 스레드 수가 1시간 동안의 활성 스레드 수의 3배를 초과"
+          description: "Instance {{ $labels.instance }} has too many live threads."
+      - alert: TooJvmGCPause
+        expr: (avg(jvm_gc_pause_seconds_sum) by (instance)) > 3
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "jvm gc 시간 3초 초과"
+          description: "Instance {{ $labels.instance }}'s JVM GC time is too long."
+  - name: node
+    rules:
+      - alert: TooNodeGCPause
+        expr: avg(rate(go_gc_duration_seconds[5m])) by (instance) > 3
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "node gc 시간 3초 초과"
+          description: "Instance {{ $labels.instance }}'s node GC time is too long."

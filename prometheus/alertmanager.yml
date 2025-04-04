@@ -1,0 +1,30 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ['critical']
+
+  # 최초 알림이 생성되어 그룹이 생성되면 이후 알림을 그룹으로 묶기까지 group_wait 동안 기다립니다
+  group_wait: 30s
+
+  # 그룹 내에 속한 알림이 group_interval 안에 다시 발생한 경우 무시합니다
+  group_interval: 5m
+
+  # 그룹 내에 속하지 않는 알림이 repeat_interval 안에 다시 발생한 경우 무시합니다
+  repeat_interval: 5m
+  receiver: 'slack-notifications'
+
+receivers:
+  - name: 'slack-notifications'
+    slack_configs:
+      - api_url: '<your slack-webhook URL>'
+        channel: '#alarm'
+        text: >
+          {{ range $i, .Alerts }}
+          {{ if ne $i 0 }}
+          --
+          {{ end }}
+          *Alert:* {{ .Annotations.summary }}\n
+          *Description:* {{ .Annotations.description }}\n
+          *View Alert:* <http://localhost:9093/#/alerts?silenced=false&inhibited=false&active=true&filter=%7Balertname%3D%22{{ .Labels.alertname }}%22%7D|Click here>\n
+          {{ end }}

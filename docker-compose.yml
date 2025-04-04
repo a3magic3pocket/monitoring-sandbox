@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: monitoring:0.0.1
+    container_name: web
+    restart: always
+    ports:
+      # 스프링 메트릭 확인을 위한 포트(설정 하지 않아도 그라파나에서 확인할 수 있다)
+      - "8080:8080"
+      # 노드 메트릭 확인을 위한 포트(설정 하지 않아도 그라파나에서 확인할 수 있다)
+      - "9100:9100"
+    environment:
+      - JAVA_OPTS=-Xms512m -Xmx1024m
+    command: /web-script.sh --server.port=8080
+    volumes:
+      - "./build/libs/demo-0.0.1-SNAPSHOT.jar:/demo-0.0.1-SNAPSHOT.jar"
+    networks:
+      - app-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: always
+    volumes:
+      - "./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml"
+      - "./prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml"
+    ports:
+      - "9090:9090"
+    depends_on:
+      - web
+    networks:
+      - app-network
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    restart: always
+    ports:
+      - "9093:9093"
+    volumes:
+      - "./prometheus/alertmanager.yml:/etc/alertmanager/config.yml"
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+    depends_on:
+      - prometheus
+    networks:
+      - app-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./storage/grafana:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - app-network
+
+networks:
+  app-network:
